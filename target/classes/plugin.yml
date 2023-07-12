@@ -1,0 +1,15 @@
+name: NgabDungeons
+version: '1.0-SNAPSHOT'
+main: com.github.wisemann64.ngabdungeons.NgabDungeons
+api-version: 1.19
+commands:
+  test:
+    description: Perform a test.
+  basestats:
+    description: Stats
+  item:
+    description: Items
+  xp:
+    description: Add xp
+  switch:
+    description: Switches class

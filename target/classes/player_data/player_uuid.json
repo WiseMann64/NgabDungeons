@@ -1,0 +1,10 @@
+{
+  "uuid": null,
+  "name": null,
+  "lastLogoutTimestamp": -1,
+  "combat": {
+    "xp": 0,
+    "cumulative_xp": 0,
+    "level": 0
+  }
+}
