@@ -19,8 +19,11 @@ com\github\wisemann64\ngabdungeons\players\DPlayer.class
 com\github\wisemann64\ngabdungeons\listeners\PlayerListeners.class
 com\github\wisemann64\ngabdungeons\utils\Test.class
 com\github\wisemann64\ngabdungeons\items\EnumItemRarity.class
+com\github\wisemann64\ngabdungeons\menu\MenuProfile.class
+com\github\wisemann64\ngabdungeons\menu\MenuProfile$1.class
 com\github\wisemann64\ngabdungeons\combat\CombatListeners.class
 com\github\wisemann64\ngabdungeons\combat\CombatEntity.class
+com\github\wisemann64\ngabdungeons\menu\AbstractMenu.class
 com\github\wisemann64\ngabdungeons\mobs\DungeonZombie.class
 com\github\wisemann64\ngabdungeons\combat\ArrowStats.class
 com\github\wisemann64\ngabdungeons\items\ItemData.class
@@ -43,3 +46,4 @@ com\github\wisemann64\ngabdungeons\mobs\MobListeners.class
 com\github\wisemann64\ngabdungeons\cmds\CommandItem.class
 com\github\wisemann64\ngabdungeons\cmds\CommandTest.class
 com\github\wisemann64\ngabdungeons\combat\ArrowStats$ArrowShooter.class
+com\github\wisemann64\ngabdungeons\menu\MenuTools.class

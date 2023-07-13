@@ -2,6 +2,7 @@ package com.github.wisemann64.ngabdungeons.listeners;
 
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
 import com.github.wisemann64.ngabdungeons.PlayerManager;
+import com.github.wisemann64.ngabdungeons.menu.AbstractMenu;
 import com.github.wisemann64.ngabdungeons.players.DPlayer;
 import org.bukkit.GameMode;
 import org.bukkit.attribute.Attribute;
@@ -13,6 +14,7 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
+import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
@@ -63,5 +65,10 @@ public class PlayerListeners implements Listener {
     @EventHandler
     public void hunger(FoodLevelChangeEvent v) {
         v.setCancelled(true);
+    }
+
+    @EventHandler
+    public void inventoryClick(InventoryClickEvent v) {
+        if (v.getInventory().getHolder() instanceof AbstractMenu menu) menu.onClick(v);
     }
 }

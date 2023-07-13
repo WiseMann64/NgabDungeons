@@ -2,6 +2,7 @@ package com.github.wisemann64.ngabdungeons.utils;
 
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
 import com.github.wisemann64.ngabdungeons.PlayerManager;
+import com.github.wisemann64.ngabdungeons.menu.MenuProfile;
 import com.github.wisemann64.ngabdungeons.mobs.DungeonZombie;
 import com.github.wisemann64.ngabdungeons.players.DPlayer;
 import com.github.wisemann64.ngabdungeons.players.EnumDungeonClass;
@@ -38,6 +39,12 @@ public class Test {
                 DPlayer pl = PlayerManager.instance().getPlayer(p);
                 if (pl == null) return;
                 pl.getAttributes().describe();
+            }
+            case "profile" -> {
+                if (!(sender instanceof Player p)) return;
+                DPlayer pl = PlayerManager.instance().getPlayer(p);
+                if (pl == null) return;
+                pl.openMenu(new MenuProfile(pl));
             }
         }
 

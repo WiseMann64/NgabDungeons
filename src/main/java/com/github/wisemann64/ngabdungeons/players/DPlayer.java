@@ -6,6 +6,7 @@ import com.github.wisemann64.ngabdungeons.combat.CombatEntity;
 import com.github.wisemann64.ngabdungeons.combat.Damage;
 import com.github.wisemann64.ngabdungeons.items.EnumEquipmentSlot;
 import com.github.wisemann64.ngabdungeons.items.ItemReader;
+import com.github.wisemann64.ngabdungeons.menu.AbstractMenu;
 import com.github.wisemann64.ngabdungeons.utils.Utils;
 import com.google.gson.JsonObject;
 import net.md_5.bungee.api.ChatMessageType;
@@ -372,6 +373,10 @@ public class DPlayer implements CombatEntity {
         return classLevels.get(cls);
     }
 
+    public int getSelectedClassLevel() {
+        return classLevels.get(selectedClass).getLevel();
+    }
+
     public void addClassXp(EnumDungeonClass c, double xp) {
         classLevels.get(c).addXp((float) xp);
     }
@@ -380,5 +385,11 @@ public class DPlayer implements CombatEntity {
         if (selectedClass == cls) return;
         selectedClass = cls;
         attr.setClassStats(classLevels.get(cls).getLevel(),cls);
+    }
+
+
+    public void openMenu(AbstractMenu menu) {
+        player.closeInventory();
+        player.openInventory(menu.getInventory());
     }
 }
