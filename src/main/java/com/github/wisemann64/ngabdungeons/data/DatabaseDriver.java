@@ -1,9 +1,11 @@
 package com.github.wisemann64.ngabdungeons.data;
 
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
+import com.github.wisemann64.ngabdungeons.players.EnumClassSkills;
 import com.github.wisemann64.ngabdungeons.players.EnumDungeonClass;
 import com.google.common.collect.Table;
 import com.google.gson.Gson;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.opencsv.CSVReader;
 import com.opencsv.CSVReaderBuilder;
@@ -20,6 +22,7 @@ public class DatabaseDriver {
 
     private final Map<Integer,LevelBaseStats> levelBaseStatsMap = new HashMap<>();
     private final EnumMap<EnumDungeonClass,Map<Integer,LevelClassBonus>> classBonus = new EnumMap<>(EnumDungeonClass.class);
+    private final EnumMap<EnumClassSkills,JsonObject> skillsData = new EnumMap<>(EnumClassSkills.class);
 
     public DatabaseDriver(NgabDungeons plugin) throws IOException,CsvException {
         this.plugin = plugin;
@@ -50,6 +53,7 @@ public class DatabaseDriver {
 
         prepareBaseStats();
         prepareClassBonusStats();
+        prepareSkillsData();
     }
 
     private final int[] combatLevelup = new int[60];
@@ -127,6 +131,32 @@ public class DatabaseDriver {
 
     public LevelClassBonus getClassBonus(EnumDungeonClass c, int level) {
         return classBonus.get(c).get(level);
+    }
+
+    private void prepareSkillsData() throws IOException {
+        File f = new File(plugin.getDataFolder(),"data/class_skills.json");
+        JsonObject skills = new Gson().fromJson(new FileReader(f),JsonObject.class);
+
+        Arrays.stream(EnumClassSkills.values()).forEach(c -> {
+            if (!skills.has(c.name())) return;
+            JsonElement e = skills.get(c.name());
+            if (e instanceof JsonObject skill) skillsData.put(c,skill);
+        });
+    }
+
+    public JsonObject getSkillData(EnumClassSkills e) {
+        return skillsData.getOrDefault(e,new JsonObject());
+    }
+
+    public Map<String,Float> getSkillData(EnumClassSkills e, int level) {
+        JsonObject s = skillsData.get(e);
+        if (s == null) return null;
+        Map<String,Float> result = new HashMap<>();
+        s.entrySet().forEach(en -> {
+            if (!en.getValue().isJsonArray()) return;
+            result.put(en.getKey(),en.getValue().getAsJsonArray().get(level-1).getAsFloat());
+        });
+        return result;
     }
 
 }

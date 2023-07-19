@@ -256,5 +256,17 @@
     "base": {
       "DEFENSE": 4
     }
+  },
+  "LONG_BOW": {
+    "name": "Long Bow",
+    "material": "BOW",
+    "rarity": 1,
+    "equip": "MAINHAND",
+    "unbreakable": true,
+    "ranged": true,
+    "type": "BOW",
+    "base": {
+      "DAMAGE": 9
+    }
   }
 }

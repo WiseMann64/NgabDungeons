@@ -2,6 +2,7 @@ package com.github.wisemann64.ngabdungeons.mobs;
 
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
 import com.github.wisemann64.ngabdungeons.combat.CombatEntity;
+import com.github.wisemann64.ngabdungeons.combat.Damage;
 import com.github.wisemann64.ngabdungeons.utils.Utils;
 import net.minecraft.world.entity.Mob;
 import org.bukkit.Bukkit;
@@ -14,6 +15,7 @@ import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.entity.EntityDamageEvent;
 
 import java.util.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public abstract class AbstractDungeonMob implements CombatEntity {
 
@@ -29,6 +31,10 @@ public abstract class AbstractDungeonMob implements CombatEntity {
     private final String tag = "&8[&7Lv %level&8] &3%name %health&c❤";
     private boolean isInvul;
     private boolean readyTick = false;
+
+    public final Map<String,Integer> mapSI = new HashMap<>();
+    public final List<MobFlag<?>> flags = new ArrayList<>();
+    public final Map<MobFlag<?>,Integer> timedFlags = new HashMap<>();
 
     public AbstractDungeonMob(World w, String name, int level) {
         this(w,name,level,null);
@@ -71,6 +77,12 @@ public abstract class AbstractDungeonMob implements CombatEntity {
             int cd = damageCooldown.get(v) - 1;
             if (cd == 0) damageCooldown.remove(v);
             else damageCooldown.put(v,cd);
+        }
+
+        for (MobFlag<?> f : new HashSet<>(timedFlags.keySet())) {
+            int cd = timedFlags.get(f) - 1;
+            if (cd == 0) timedFlags.remove(f);
+            else timedFlags.put(f,cd);
         }
     }
 
@@ -216,5 +228,56 @@ public abstract class AbstractDungeonMob implements CombatEntity {
 
     public void setLastDamager(CombatEntity lastDamager) {
         this.lastDamager = lastDamager.getHandle();
+    }
+
+    public boolean hasFlag(EnumMobFlags flag) {
+        AtomicBoolean found = new AtomicBoolean(false);
+        flags.forEach(f -> {
+            if (f.getKey() == flag) found.set(true);
+        });
+        if (found.get()) return true;
+        timedFlags.keySet().forEach(f -> {
+            if (f.getKey() == flag) found.set(true);
+        });
+        return (found.get());
+    }
+
+    public <T> boolean hasFlag(EnumMobFlags flag, T val) {
+        AtomicBoolean found = new AtomicBoolean(false);
+        flags.forEach(f -> {
+            if (f.getKey() == flag && f.getValue() == val) found.set(true);
+        });
+        if (found.get()) return true;
+        timedFlags.keySet().forEach(f -> {
+            if (f.getKey() == flag && f.getValue() == val) found.set(true);
+        });
+        return (found.get());
+    }
+
+    public <T> void addFlag(EnumMobFlags flag, T val) {
+        flags.add(new MobFlag<>(flag,val));
+    }
+
+    public <T> void addTimedFlag(EnumMobFlags flag, T val, int time) {
+        timedFlags.put(new MobFlag<>(flag,val),time);
+    }
+
+    public <T> T getTimedFlagValue(EnumMobFlags flag) {
+        for (MobFlag<?> f : timedFlags.keySet()) {
+            if (f.getKey() == flag) return (T) f.getValue();
+        }
+        return null;
+    }
+
+    @Override
+    public void dealDamage(Damage damage) {
+        Double defReduction = getTimedFlagValue(EnumMobFlags.REDUCE_DEFENSE);
+        double dr = defReduction == null ? 0 : defReduction;
+
+        double pen = Math.max(0,damage.getPenetration());
+        double def = damage.isIgnoreDefense() ? 0 : Math.max(getDefense()-pen-dr,-500);
+        double mul = 1 - (def < 0 ? def/120d : def/(def+120));
+        damage.setNewValue(dealDamage(damage.getOldValue()*mul,damage.getDamager()));
+        showIndicator(damage);
     }
 }

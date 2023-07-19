@@ -2,6 +2,8 @@ package com.github.wisemann64.ngabdungeons.listeners;
 
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
 import com.github.wisemann64.ngabdungeons.PlayerManager;
+import com.github.wisemann64.ngabdungeons.items.EnumEquipmentSlot;
+import com.github.wisemann64.ngabdungeons.items.ItemReader;
 import com.github.wisemann64.ngabdungeons.menu.AbstractMenu;
 import com.github.wisemann64.ngabdungeons.players.DPlayer;
 import org.bukkit.GameMode;
@@ -15,10 +17,7 @@ import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
 import org.bukkit.event.entity.FoodLevelChangeEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
-import org.bukkit.event.player.PlayerInteractEntityEvent;
-import org.bukkit.event.player.PlayerJoinEvent;
-import org.bukkit.event.player.PlayerQuitEvent;
-import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.event.player.*;
 
 public class PlayerListeners implements Listener {
 
@@ -70,5 +69,17 @@ public class PlayerListeners implements Listener {
     @EventHandler
     public void inventoryClick(InventoryClickEvent v) {
         if (v.getInventory().getHolder() instanceof AbstractMenu menu) menu.onClick(v);
+    }
+
+    @EventHandler
+    public void dropItem(PlayerDropItemEvent v) {
+//        TODO in dungeon?
+        DPlayer p = NgabDungeons.getPlayer(v.getPlayer());
+        if (p == null) return;
+        v.setCancelled(true);
+        p.getSkillHandler().setCastItem(ItemReader.ofItemStack(v.getItemDrop().getItemStack(), EnumEquipmentSlot.MAINHAND));
+        if (p.getHandle().isSneaking()) p.castUltimate();
+        else if (p.getHandle().isSprinting()) p.castSecondary();
+        else p.castPrimary();
     }
 }

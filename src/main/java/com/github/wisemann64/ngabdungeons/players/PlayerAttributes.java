@@ -59,6 +59,12 @@ public class PlayerAttributes {
             flatBonus.put(EnumStats.ATTACK_SPEED, classBonus.bonusB());
         }
 
+        if (owner.getPassiveSkills().contains(EnumClassSkills.POWER)) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.POWER);
+            flatBonus.put(EnumStats.CRIT_CHANCE,flatBonus.getOrDefault(EnumStats.CRIT_CHANCE,0D) + data.getOrDefault("cc",0F));
+            flatBonus.put(EnumStats.CRIT_DAMAGE,flatBonus.getOrDefault(EnumStats.CRIT_DAMAGE,0D) + data.getOrDefault("cd",0F));
+        }
+
 //        more to go...
 
         Map<EnumEquipmentSlot, ItemReader> inv = owner.getEquipmentSet();
@@ -142,6 +148,10 @@ public class PlayerAttributes {
     public double getArrowDamageMultiplier() {
         double base = 100;
 //        Items/buff
+        if (owner.getPassiveSkills().contains(EnumClassSkills.POWER)) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.POWER);
+            base += data.getOrDefault("ranged",0F);
+        }
 
         if (selectedClass == EnumDungeonClass.ARCHER) {
             base += classBonus.bonusA();
@@ -182,6 +192,9 @@ public class PlayerAttributes {
         owner.sendMessage("Crit Damage: " + get(EnumStats.CRIT_DAMAGE));
         owner.sendMessage("Attack Speed: " + get(EnumStats.ATTACK_SPEED));
         owner.sendMessage("Penetration: " + get(EnumStats.PENETRATION));
+        owner.sendMessage("Melee Damage: " + getMeleeDamageMultiplier());
+        owner.sendMessage("Arrow Damage: " + getArrowDamageMultiplier());
+        owner.sendMessage("Damage Multiplier: " + getDamageMultiplier());
     }
 
     private double get(EnumStats stats) {

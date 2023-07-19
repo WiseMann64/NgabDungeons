@@ -34,6 +34,7 @@ public class MenuProfile extends AbstractMenu{
         inv.setItem(21, classLevel(EnumDungeonClass.SUPPORT));
         inv.setItem(23, classLevel(EnumDungeonClass.FIGHTER));
         inv.setItem(24, classLevel(EnumDungeonClass.ARCHER));
+        inv.setItem(49,MenuTools.CLOSE);
         return inv;
     }
 
@@ -41,7 +42,10 @@ public class MenuProfile extends AbstractMenu{
     public void onClick(InventoryClickEvent clickEvent) {
         clickEvent.setCancelled(true);
         if (!getInventory().equals(clickEvent.getClickedInventory())) return;
-
+        switch (clickEvent.getSlot()) {
+            case 1 -> getOwner().openMenu(new MenuClassSelection(getOwner(),this));
+            case 49 -> close();
+        }
     }
 
     private ItemStack createStats() {

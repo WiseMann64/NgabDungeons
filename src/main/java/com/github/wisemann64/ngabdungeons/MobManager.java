@@ -2,6 +2,9 @@ package com.github.wisemann64.ngabdungeons;
 
 import com.github.wisemann64.ngabdungeons.combat.ArrowStats;
 import com.github.wisemann64.ngabdungeons.mobs.AbstractDungeonMob;
+import com.github.wisemann64.ngabdungeons.skills.AbstractSkill;
+import org.bukkit.Color;
+import org.bukkit.Particle;
 import org.bukkit.entity.Arrow;
 
 import java.util.*;
@@ -10,6 +13,9 @@ public class MobManager {
 
     private final Map<String, AbstractDungeonMob> trackedMobs = new HashMap<>();
     private final Map<UUID, ArrowStats> flyingArrows = new HashMap<>();
+    private final Map<UUID, AbstractSkill> trackedSkills = new HashMap<>();
+    private final Set<UUID> skillsToRemove = new HashSet<>();
+    private final Set<AbstractSkill> skillsToAdd = new HashSet<>();
 
     public Set<UUID> getTrackedMobsUUIDs() {
         Set<UUID> ret = new HashSet<>();
@@ -43,10 +49,6 @@ public class MobManager {
         return id;
     }
 
-//    public void empty() {
-//        new ArrayList<>(trackedMobs.values()).forEach(SLMob::remove);
-//    }
-
     public AbstractDungeonMob getMob(UUID u) {
         for (AbstractDungeonMob ma : trackedMobs.values()) if (ma.getHandle().getUniqueId().equals(u)) return ma;
         return null;
@@ -70,18 +72,49 @@ public class MobManager {
         Set<UUID> rem1 = new HashSet<>();
         flyingArrows.forEach((id,arr) -> {
             if (arr.arrow().isInBlock() || arr.arrow().isDead()) rem1.add(id);
+            if (arr.arrow().isInBlock()) arr.arrow().remove();
+
         });
         rem1.forEach(this::removeArrow);
 
         trackedMobs.values().forEach(AbstractDungeonMob::tick);
+        flyingArrows.values().forEach(as -> {
+            if (as.flags().containsKey(ArrowStats.ArrowFlags.ANTI_GRAVITY))
+                as.arrow().getWorld().spawnParticle(Particle.FIREWORKS_SPARK,as.arrow().getLocation(),1,0.01,0.01,0.01,0,null,true);
+            if (as.flags().containsKey(ArrowStats.ArrowFlags.PENETRATE))
+                as.arrow().getWorld().spawnParticle(Particle.REDSTONE,as.arrow().getLocation(),1,0.01,0.01,0.01,0,new Particle.DustOptions(Color.RED,1),true);
+        });
+
+        trackedSkills.values().forEach(AbstractSkill::tick);
+
+        skillsToRemove.forEach(trackedSkills::remove);
+        skillsToRemove.clear();
+
+        skillsToAdd.forEach(s -> trackedSkills.put(s.getUniqueId(),s));
+        skillsToAdd.clear();
     }
 
     public void addArrow(Arrow arrow, double damage, ArrowStats.ArrowShooter shooter, UUID shooterUUID, boolean crit,double penetration) {
-        ArrowStats as = new ArrowStats(arrow, damage, shooter, shooterUUID, crit,penetration);
+        ArrowStats as = new ArrowStats(arrow, damage, shooter, shooterUUID, crit,penetration,null);
+        flyingArrows.put(arrow.getUniqueId(),as);
+    }
+
+    public void addArrow(Arrow arrow, double damage, ArrowStats.ArrowShooter shooter,
+                         UUID shooterUUID, boolean crit, double penetration,
+                         EnumMap<ArrowStats.ArrowFlags,Float> flags) {
+        ArrowStats as = new ArrowStats(arrow, damage, shooter, shooterUUID, crit,penetration,flags);
         flyingArrows.put(arrow.getUniqueId(),as);
     }
 
     public ArrowStats removeArrow(UUID uuid) {
         return flyingArrows.remove(uuid);
+    }
+
+    public void addSkill(AbstractSkill skill) {
+        skillsToAdd.add(skill);
+    }
+
+    public void removeSkill(UUID skill) {
+        skillsToRemove.add(skill);
     }
 }

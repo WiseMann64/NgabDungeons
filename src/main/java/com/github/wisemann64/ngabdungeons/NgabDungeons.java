@@ -151,6 +151,7 @@ public final class NgabDungeons extends JavaPlugin {
         saveResource("data/items.json",true);
         saveResource("data/base_stats.csv",true);
         saveResource("data/class_bonus.csv",true);
+        saveResource("data/class_skills.json",true);
     }
 
     public static void savePlayerData(DPlayer player) {

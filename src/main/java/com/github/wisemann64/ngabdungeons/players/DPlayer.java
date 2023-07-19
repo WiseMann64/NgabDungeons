@@ -18,10 +18,7 @@ import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.Random;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.BiConsumer;
 
 public class DPlayer implements CombatEntity {
@@ -38,6 +35,11 @@ public class DPlayer implements CombatEntity {
     private boolean readyTick = false;
 
     private EnumDungeonClass selectedClass = EnumDungeonClass.TANK;
+    private final EnumMap<EnumDungeonClass,SkillHolder> skills = new EnumMap<>(EnumDungeonClass.class);
+    private final EnumMap<EnumClassSkills,Integer> skillsLevels = new EnumMap<>(EnumClassSkills.class);
+    private final Map<String,Integer> activeTriggers = new HashMap<>();
+
+    private final SkillHandler skillHandler = new SkillHandler(this);
 
 
     public DPlayer(@NotNull Player p) {
@@ -46,6 +48,7 @@ public class DPlayer implements CombatEntity {
         name = p.getName();
 
         config = NgabDungeons.getPlayerData(p);
+        prepareSkills();
 
         if (NgabDungeons.isNewPlayer(p)) createData();
         else readData();
@@ -69,6 +72,11 @@ public class DPlayer implements CombatEntity {
         }
     }
 
+    private void prepareSkills() {
+        for (EnumDungeonClass e: EnumDungeonClass.values()) skills.put(e,new SkillHolder(this,e));
+        for (EnumClassSkills e: EnumClassSkills.values()) skillsLevels.put(e,0);
+    }
+
     private void createData() {
         combat = new PlayerLevel(this,EnumLevelType.COMBAT,null);
         newClassLevel();
@@ -83,6 +91,15 @@ public class DPlayer implements CombatEntity {
         JsonObject classLevels = config.getAsJsonObject("class_levels");
         if (classLevels == null) newClassLevel();
         else classLevels.asMap().forEach((c,e) -> this.classLevels.put(EnumDungeonClass.valueOf(c),new PlayerLevel(this,EnumLevelType.valueOf(c),e.getAsJsonObject())));
+
+        JsonObject skills = config.getAsJsonObject("skills");
+        if (skills != null) for (EnumDungeonClass e: EnumDungeonClass.values()) {
+            if (!skills.has(e.name())) continue;
+            this.skills.get(e).ofJson(skills.get(e.name()));
+        }
+
+        JsonObject skillLevels = config.getAsJsonObject("skill_levels");
+        if (skillLevels != null) skillLevels.entrySet().forEach(e -> skillsLevels.put(EnumClassSkills.valueOf(e.getKey()),e.getValue().getAsInt()));
     }
 
     private void saveData() {
@@ -100,6 +117,14 @@ public class DPlayer implements CombatEntity {
         classLevels.add("SUPPORT",this.classLevels.get(EnumDungeonClass.SUPPORT).asJson());
 
         config.add("class_levels",classLevels);
+
+        JsonObject skills = new JsonObject();
+        for (EnumDungeonClass e: EnumDungeonClass.values()) skills.add(e.name(),this.skills.get(e).asJson());
+        config.add("skills",skills);
+
+        JsonObject levels = new JsonObject();
+        skillsLevels.forEach((e,i) -> levels.addProperty(e.name(),i));
+        config.add("skill_levels",levels);
     }
 
     private void newPlayerEvent() {
@@ -126,6 +151,8 @@ public class DPlayer implements CombatEntity {
         cooldownTick();
         regenTick();
         xpTick();
+        skillHandler.tick();
+        triggerTick();
     }
 
     private void syncHealth() {
@@ -215,8 +242,16 @@ public class DPlayer implements CombatEntity {
         player.sendMessage(Utils.c(String.valueOf(obj)));
     }
 
-    public void selfSound(Sound sound, int i, float v) {
+    public void selfSound(Sound sound, float i, float v) {
         player.playSound(player.getLocation(),sound,i,v);
+    }
+
+    public void worldSound(Sound sound, float i, float v) {
+        player.getWorld().playSound(player.getLocation(),sound,i,v);
+    }
+
+    public void worldParticle() {
+
     }
 
     public PlayerLevel getCombat() {
@@ -317,7 +352,13 @@ public class DPlayer implements CombatEntity {
         return new Damage(dmg, false,crit,attr.getPenetration());
     }
 
-    private boolean drawCrit() {
+    public Damage simulateArrowAttackFixedCrit(ItemReader item, boolean crit) {
+        double cd = crit ? 1 + attr.getCritDamage()/100 : 1;
+        double dmg = (5 + (item == null ? 0 : item.getRangedDamage())) * (1 + 0.01*attr.getStrength())*cd*attr.getArrowDamageMultiplier()*attr.getDamageMultiplier();
+        return new Damage(dmg, false,crit,attr.getPenetration());
+    }
+
+    public boolean drawCrit() {
         Random r = new Random();
         return r.nextDouble() < attr.getCritChance()/100D;
     }
@@ -391,5 +432,67 @@ public class DPlayer implements CombatEntity {
     public void openMenu(AbstractMenu menu) {
         player.closeInventory();
         player.openInventory(menu.getInventory());
+    }
+
+    public void castPrimary() {
+        skillHandler.castPrimary();
+    }
+
+    public void castSecondary() {
+        skillHandler.castSecondary();
+    }
+
+    public void castUltimate() {
+        skillHandler.castUltimate();
+    }
+
+    public EnumClassSkills getPrimarySkill() {
+        return skills.get(selectedClass).getPrimary();
+    }
+
+    public EnumClassSkills getSecondarySkill() {
+        return skills.get(selectedClass).getSecondary();
+    }
+
+    public EnumClassSkills getUltimateSkill() {
+        return skills.get(selectedClass).getUltimate();
+    }
+
+    public int getSkillLevel(EnumClassSkills skill) {
+        return skillsLevels.getOrDefault(skill,0);
+    }
+
+    public List<EnumClassSkills> getPassiveSkills() {
+        SkillHolder sh = skills.get(getSelectedClass());
+        List<EnumClassSkills> ret = new ArrayList<>();
+        if (sh.getPrimary() != null && !sh.getPrimary().isActive()) ret.add(sh.getPrimary());
+        if (sh.getSecondary() != null && !sh.getSecondary().isActive()) ret.add(sh.getSecondary());
+        if (sh.getUltimate() != null && !sh.getUltimate().isActive()) ret.add(sh.getUltimate());
+        return ret;
+    }
+
+    private void triggerTick() {
+        Set<String> trigs = new HashSet<>(activeTriggers.keySet());
+        trigs.forEach(t -> {
+            int i = activeTriggers.getOrDefault(t,0);
+            if (i == 0) activeTriggers.remove(t);
+            else activeTriggers.put(t,i-1);
+        });
+    }
+
+    protected void addTrigger(String trigger, int duration) {
+        activeTriggers.put(trigger,duration);
+    }
+
+    public boolean hasTrigger(String trigger) {
+        return activeTriggers.containsKey(trigger);
+    }
+
+    public void removeTrigger(String trigger) {
+        activeTriggers.remove(trigger);
+    }
+
+    public SkillHandler getSkillHandler() {
+        return skillHandler;
     }
 }

@@ -3,6 +3,9 @@ package com.github.wisemann64.ngabdungeons.combat;
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
 import com.github.wisemann64.ngabdungeons.mobs.AbstractDungeonMob;
 import com.github.wisemann64.ngabdungeons.players.DPlayer;
+import com.github.wisemann64.ngabdungeons.players.EnumClassSkills;
+import com.github.wisemann64.ngabdungeons.players.SkillHandler;
+import org.bukkit.Sound;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.EventHandler;
@@ -10,6 +13,11 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.util.Vector;
+
+import java.util.EnumMap;
+import java.util.Map;
+import java.util.Random;
 
 public class CombatListeners implements Listener {
 
@@ -24,7 +32,7 @@ public class CombatListeners implements Listener {
         double initDamage = v.getDamage();
         v.setDamage(0);
         switch (v.getCause()) {
-            case CONTACT, DRYOUT, CRAMMING, HOT_FLOOR, FLY_INTO_WALL, CUSTOM, DRAGON_BREATH, THORNS, FALLING_BLOCK,
+            case CONTACT, DRYOUT, CRAMMING, HOT_FLOOR, FLY_INTO_WALL, DRAGON_BREATH, THORNS, FALLING_BLOCK,
                     POISON, MAGIC, FIRE, FIRE_TICK, WITHER, MELTING, FREEZE, SONIC_BOOM -> {
                 if (c.getEnvDamageCooldown().getOrDefault(v.getCause(),0) != 0) {
                     v.setCancelled(true);
@@ -138,12 +146,80 @@ public class CombatListeners implements Listener {
         double damage;
         double penetration=0;
         ArrowStats.ArrowShooter shooter;
+        EnumMap<ArrowStats.ArrowFlags,Float> flags = new EnumMap<>(ArrowStats.ArrowFlags.class);
         if (c instanceof DPlayer p) {
             Damage dmg = p.arrowAttack(crit);
             damage = dmg.getOldValue();
             shooter = ArrowStats.ArrowShooter.PLAYER;
             crit = dmg.isCrit();
             penetration = dmg.getPenetration();
+//            TODO Skill Buffs
+
+            boolean multi = p.getPassiveSkills().contains(EnumClassSkills.MULTI_ARROW)
+                    && new Random().nextDouble() < 0.01*SkillHandler.dataGetter(p,EnumClassSkills.MULTI_ARROW).getOrDefault("chance",0F);
+
+            Arrow second = multi ? a.getWorld().spawnArrow(a.getLocation(),a.getVelocity(),0,0) : null;
+            Damage secondDmg = multi ? p.arrowAttack(a.isCritical()) : null;
+            double secondDamage = multi ? secondDmg.getOldValue() : 0;
+            double secondPen = multi ? secondDmg.getPenetration() : 0;
+            boolean secondCrit = multi && secondDmg.isCrit();
+            if (multi) {
+                Random r = new Random();
+                Vector vel = a.getVelocity().normalize();
+                vel.rotateAroundX(2*0.0436332*r.nextDouble()-0.0436332).
+                        rotateAroundY(2*0.0436332*r.nextDouble()-0.0436332).
+                        rotateAroundZ(2*0.0436332*r.nextDouble()-0.0436332);
+                second.setVelocity(vel.normalize().multiply(a.getVelocity().length()));
+                second.setCritical(a.isCritical());
+            }
+
+            if (p.hasTrigger("ANTI_GRAVITY")) {
+                dmg = p.arrowAttack(true);
+                damage = dmg.getOldValue();
+                crit = dmg.isCrit();
+                penetration = dmg.getPenetration();
+
+                Map<String, Float> data = SkillHandler.dataGetter(p, EnumClassSkills.ANTI_GRAVITY);
+                damage *= data.getOrDefault("damage",1F);
+                a.setGravity(false);
+                p.removeTrigger("ANTI_GRAVITY");
+                a.setVelocity(a.getVelocity().normalize().multiply(2.5));
+                flags.put(ArrowStats.ArrowFlags.ANTI_GRAVITY,1F);
+                a.setCritical(false);
+
+                if (multi) {
+                    Random r = new Random();
+                    Vector vel = a.getVelocity().normalize();
+                    vel.rotateAroundX(2*0.0174533*r.nextDouble()-0.0174533).
+                            rotateAroundY(2*0.0174533*r.nextDouble()-0.0174533).
+                            rotateAroundZ(2*0.0174533*r.nextDouble()-0.0174533);
+                    second.setGravity(false);
+                    second.setVelocity(vel.normalize().multiply(2.5));
+                    second.setCritical(false);
+
+                    secondDmg = p.arrowAttack(true);
+                    secondDamage *= data.getOrDefault("damage",1F);
+                    secondCrit = secondDmg.isCrit();
+                }
+            }
+
+            if (p.hasTrigger("PENETRATE")) {
+                Map<String, Float> data = SkillHandler.dataGetter(p, EnumClassSkills.PENETRATE);
+                penetration += data.getOrDefault("pen",0F);
+                a.setCritical(false);
+                flags.put(ArrowStats.ArrowFlags.IGNORE_DEFENSE,data.getOrDefault("ignore",0F));
+                flags.put(ArrowStats.ArrowFlags.PENETRATE,1F);
+                p.removeTrigger("PENETRATE");
+                p.worldSound(Sound.ENTITY_ITEM_BREAK,1,1);
+
+                if (multi) {
+                    second.setCritical(false);
+                    secondPen += data.getOrDefault("pen",0F);
+                }
+            }
+
+            if (multi) NgabDungeons.getMobManager().addArrow(second,secondDamage,shooter,e.getUniqueId(),secondCrit, secondPen,flags);
+
         } else if (c instanceof AbstractDungeonMob m) {
             damage = m.getRangedAttackPower();
             shooter = ArrowStats.ArrowShooter.MOB;
@@ -152,7 +228,7 @@ public class CombatListeners implements Listener {
             damage = a.getDamage();
             shooter = ArrowStats.ArrowShooter.GENERIC;
         }
-        NgabDungeons.getMobManager().addArrow(a,damage,shooter,e.getUniqueId(),crit,penetration);
+        NgabDungeons.getMobManager().addArrow(a,damage,shooter,e.getUniqueId(),crit,penetration,flags);
     }
 
     private void damageByArrow(CombatEntity rec, Arrow a, EntityDamageByEntityEvent v) {
@@ -163,9 +239,7 @@ public class CombatListeners implements Listener {
 
         ArrowStats arrow = NgabDungeons.getMobManager().removeArrow(a.getUniqueId());
 
-        if (arrow == null) {
-            arrow = new ArrowStats(a,0, ArrowStats.ArrowShooter.GENERIC,null,a.isCritical(),0);
-        }
+        if (arrow == null) arrow = new ArrowStats(a,0, ArrowStats.ArrowShooter.GENERIC,null,a.isCritical(),0,null);
 
         double damage = arrow.damage();
         ArrowStats.ArrowShooter shooter = arrow.shooter();
@@ -177,6 +251,9 @@ public class CombatListeners implements Listener {
         }
         Damage dmg = new Damage(damage,false,crit,arrow.penetration());
         dmg.setDamager(damager);
-        rec.dealDamage(dmg);
+
+        if (arrow.flags() != null && arrow.flags().containsKey(ArrowStats.ArrowFlags.IGNORE_DEFENSE))
+            rec.dealDamageIgnoreDefense(dmg,arrow.flags().get(ArrowStats.ArrowFlags.IGNORE_DEFENSE));
+        else rec.dealDamage(dmg);
     }
 }

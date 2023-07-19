@@ -26,10 +26,10 @@ public class DungeonZombie extends AbstractDungeonMob {
     @Override
     public void initAttribute() {
         MobAttributes a = getAttributes();
-        a.setMaxHealth(50000);
-        a.setHealth(50000);
+        a.setMaxHealth(5000);
+        a.setHealth(5000);
         a.setAttackPower(20);
-        a.setDefense(500);
+        a.setDefense(4000);
     }
 
     @Override
