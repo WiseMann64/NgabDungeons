@@ -17,6 +17,10 @@ public class Damage {
         newValue = oldValue;
     }
 
+    public static Damage multiply(Damage from, double multiplier) {
+        return new Damage(from.oldValue*multiplier,from.ignoreDefense,from.crit,from.penetration);
+    }
+
     public double getOldValue() {
         return oldValue;
     }

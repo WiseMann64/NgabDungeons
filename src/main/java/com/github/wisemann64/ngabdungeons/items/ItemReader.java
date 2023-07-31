@@ -110,4 +110,6 @@ public class ItemReader {
         return data.isRangedDamage() ? data.getBaseStat(EnumItemStats.DAMAGE) : 0;
     }
 
+//    TODO STATS GETTER (getCritChance, getMaxHealth, getStrength, etc...)
+
 }

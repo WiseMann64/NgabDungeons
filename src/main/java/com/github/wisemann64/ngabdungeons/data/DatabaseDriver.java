@@ -3,6 +3,7 @@ package com.github.wisemann64.ngabdungeons.data;
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
 import com.github.wisemann64.ngabdungeons.players.EnumClassSkills;
 import com.github.wisemann64.ngabdungeons.players.EnumDungeonClass;
+import com.github.wisemann64.ngabdungeons.utils.EnumDoubleMap;
 import com.google.common.collect.Table;
 import com.google.gson.Gson;
 import com.google.gson.JsonElement;

@@ -6,6 +6,7 @@ import com.github.wisemann64.ngabdungeons.data.LevelClassBonus;
 import com.github.wisemann64.ngabdungeons.items.EnumEquipmentSlot;
 import com.github.wisemann64.ngabdungeons.items.EnumItemStats;
 import com.github.wisemann64.ngabdungeons.items.ItemReader;
+import com.github.wisemann64.ngabdungeons.utils.EnumDoubleMap;
 import com.google.common.util.concurrent.AtomicDouble;
 
 import java.util.EnumMap;
@@ -41,28 +42,57 @@ public class PlayerAttributes {
 
     public void tick() {
 
-//      Multipliers
-        EnumMap<EnumStats,Double> multipliers = new EnumMap<>(EnumStats.class);
+//      TODO Multipliers
+        EnumDoubleMap<EnumStats> multipliers = new EnumDoubleMap<>(EnumStats.class);
+        for (EnumStats es : EnumStats.values()) multipliers.put(es,1);
         if (selectedClass == EnumDungeonClass.TANK) {
-            multipliers.put(EnumStats.DEFENSE,1 + classBonus.bonusA()/100);
+            multipliers.add(EnumStats.DEFENSE,classBonus.bonusA()/100);
         } else if (selectedClass == EnumDungeonClass.SUPPORT) {
-            multipliers.put(EnumStats.REGEN, 1 + classBonus.bonusA()/100);
+            multipliers.add(EnumStats.REGEN,classBonus.bonusA()/100);
+        }
+
+        if (owner.getUltimateSkill() == EnumClassSkills.HUNTER && owner.hasTrigger("HUNTER")) {
+            Map<String, Float> data = DatabaseDriver.getInstance().getSkillData(EnumClassSkills.HUNTER,owner.getSkillLevel(EnumClassSkills.HUNTER));
+            multipliers.add(EnumStats.ATTACK_SPEED,data.getOrDefault("aspd",0F));
+        }
+
+        if (owner.getUltimateSkill() == EnumClassSkills.BERSERK && owner.hasTrigger("BERSERK")) {
+            Map<String, Float> data = DatabaseDriver.getInstance().getSkillData(EnumClassSkills.BERSERK,owner.getSkillLevel(EnumClassSkills.BERSERK));
+            multipliers.add(EnumStats.DEFENSE,data.getOrDefault("def",0F)/100);
         }
 
 //        more to go...
 
-//        Flat bonus/buff
-        EnumMap<EnumStats,Double> flatBonus = new EnumMap<>(EnumStats.class);
+//        TODO Flat bonus/buff
+        EnumDoubleMap<EnumStats> flatBonus = new EnumDoubleMap<>(EnumStats.class);
         if (selectedClass == EnumDungeonClass.ARCHER) {
-            flatBonus.put(EnumStats.CRIT_DAMAGE, classBonus.bonusB());
+            flatBonus.add(EnumStats.CRIT_DAMAGE, classBonus.bonusB());
         } else if (selectedClass == EnumDungeonClass.FIGHTER) {
-            flatBonus.put(EnumStats.ATTACK_SPEED, classBonus.bonusB());
+            flatBonus.add(EnumStats.ATTACK_SPEED, classBonus.bonusB());
         }
 
         if (owner.getPassiveSkills().contains(EnumClassSkills.POWER)) {
             Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.POWER);
-            flatBonus.put(EnumStats.CRIT_CHANCE,flatBonus.getOrDefault(EnumStats.CRIT_CHANCE,0D) + data.getOrDefault("cc",0F));
-            flatBonus.put(EnumStats.CRIT_DAMAGE,flatBonus.getOrDefault(EnumStats.CRIT_DAMAGE,0D) + data.getOrDefault("cd",0F));
+            flatBonus.add(EnumStats.CRIT_CHANCE,data.get("cc"));
+            flatBonus.add(EnumStats.CRIT_DAMAGE,data.get("cd"));
+        }
+
+        if (owner.hasTrigger("BLOODLUST")) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.BLOODLUST);
+            flatBonus.add(EnumStats.ATTACK_SPEED,data.get("aspd"));
+        }
+
+        if (owner.getPassiveSkills().contains(EnumClassSkills.HATRED)) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.HATRED);
+            float missingHealth = 1-owner.getHealthFraction();
+            double bonus = data.getOrDefault("strength",0F)*missingHealth;
+            flatBonus.add(EnumStats.STRENGTH,bonus);
+        }
+
+        if (owner.getPassiveSkills().contains(EnumClassSkills.FRENZY)) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.FRENZY);
+            int count = owner.getAdditionalTrigger("FRENZY");
+            if (count > 0) flatBonus.add(EnumStats.ATTACK_SPEED,count*data.getOrDefault("aspd",0F));
         }
 
 //        more to go...
@@ -76,7 +106,7 @@ public class PlayerAttributes {
 
         Function<EnumStats,Double> calculate = stats -> {
             double base = baseStats.getOrDefault(stats,0D);
-            double flat = flatBonus.getOrDefault(stats,0D);
+            double flat = flatBonus.get(stats);
             float multiplier = multipliers.getOrDefault(stats,1D).floatValue();
             double item = switch (stats) {
                 case MAX_HEALTH -> getBase.apply(EnumItemStats.HEALTH);
@@ -132,7 +162,25 @@ public class PlayerAttributes {
 
     public double getMeleeDamageMultiplier() {
         double base = 100;
-//        Items/buff
+//        TODO Items/buff
+        if (owner.getPassiveSkills().contains(EnumClassSkills.HATRED)) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.HATRED);
+            float missingHealth = 1-owner.getHealthFraction();
+            double bonus = data.getOrDefault("melee",0F)*missingHealth;
+            base += bonus;
+        }
+        if (owner.getPassiveSkills().contains(EnumClassSkills.FRENZY)) {
+            Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.FRENZY);
+            int count = owner.getAdditionalTrigger("FRENZY");
+            if (count > 0) {
+                base += data.getOrDefault("melee",0F)*count;
+            }
+        }
+
+        if (owner.getUltimateSkill() == EnumClassSkills.BERSERK && owner.hasTrigger("BERSERK")) {
+            Map<String, Float> data = DatabaseDriver.getInstance().getSkillData(EnumClassSkills.BERSERK,owner.getSkillLevel(EnumClassSkills.BERSERK));
+            base += data.getOrDefault("melee",0F);
+        }
 
         if (selectedClass == EnumDungeonClass.FIGHTER) {
             base += classBonus.bonusA();
@@ -147,7 +195,7 @@ public class PlayerAttributes {
 
     public double getArrowDamageMultiplier() {
         double base = 100;
-//        Items/buff
+//        TODO Items/buff
         if (owner.getPassiveSkills().contains(EnumClassSkills.POWER)) {
             Map<String, Float> data = SkillHandler.dataGetter(owner, EnumClassSkills.POWER);
             base += data.getOrDefault("ranged",0F);
@@ -164,6 +212,7 @@ public class PlayerAttributes {
     }
 
     public double getDamageMultiplier() {
+//        TODO Item/Buff
         double base = 100;
 
         if (selectedClass == EnumDungeonClass.TANK) {

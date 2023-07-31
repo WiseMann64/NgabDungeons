@@ -6,9 +6,12 @@ import com.github.wisemann64.ngabdungeons.menu.MenuProfile;
 import com.github.wisemann64.ngabdungeons.mobs.DungeonZombie;
 import com.github.wisemann64.ngabdungeons.players.DPlayer;
 import com.github.wisemann64.ngabdungeons.players.EnumDungeonClass;
+import com.github.wisemann64.ngabdungeons.skills.SkillThrust;
 import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Player;
+import org.bukkit.util.Vector;
 
 import java.util.Map;
 import java.util.Random;

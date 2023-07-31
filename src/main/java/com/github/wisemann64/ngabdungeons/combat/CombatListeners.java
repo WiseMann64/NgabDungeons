@@ -1,10 +1,15 @@
 package com.github.wisemann64.ngabdungeons.combat;
 
 import com.github.wisemann64.ngabdungeons.NgabDungeons;
+import com.github.wisemann64.ngabdungeons.data.DatabaseDriver;
 import com.github.wisemann64.ngabdungeons.mobs.AbstractDungeonMob;
 import com.github.wisemann64.ngabdungeons.players.DPlayer;
 import com.github.wisemann64.ngabdungeons.players.EnumClassSkills;
 import com.github.wisemann64.ngabdungeons.players.SkillHandler;
+import com.github.wisemann64.ngabdungeons.utils.Utils;
+import org.bukkit.Color;
+import org.bukkit.Location;
+import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.entity.Arrow;
 import org.bukkit.entity.Entity;
@@ -13,11 +18,14 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.util.Vector;
 
-import java.util.EnumMap;
-import java.util.Map;
-import java.util.Random;
+import java.util.*;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.function.Predicate;
 
 public class CombatListeners implements Listener {
 
@@ -103,8 +111,38 @@ public class CombatListeners implements Listener {
         if (rec instanceof DPlayer p && dam1 instanceof AbstractDungeonMob dam2) {
             double damage = v.getCause() == EntityDamageEvent.DamageCause.ENTITY_EXPLOSION ? 0 : dam2.getAttackPower();
             Damage d = new Damage(damage,false,false,dam2.getPenetration());
-            if (p.isInvis()) d.setNewValue(0);
+            if (p.isInvis()) return;
+
             p.dealDamage(d);
+
+            if (p.getUltimateSkill() == EnumClassSkills.BERSERK && p.getHealthFraction() < 0.25 && p.ultimateReady()) {
+                Map<String, Float> data = DatabaseDriver.getInstance().getSkillData(EnumClassSkills.BERSERK,p.getSkillLevel(EnumClassSkills.BERSERK));
+                int cd = (int) (data.getOrDefault("cooldown",0F)*20);
+                int duration = (int) (data.getOrDefault("duration",0F)*20);
+                p.getSkillHandler().setUltimateCooldown(cd);
+                p.sendMessage("&aYou casted ultimate skill &6" + EnumClassSkills.BERSERK.getName() +  "&a.");
+                p.addTrigger("BERSERK",duration);
+                double bdmg = p.basicAttackFixedCrit(false).getOldValue()*data.getOrDefault("damage",1F);
+                Damage bDmg = new Damage(bdmg,false,false,p.getAttributes().getPenetration());
+                p.getHandle().getNearbyEntities(3,2,3).stream().map(e -> NgabDungeons.getMob(e.getUniqueId()))
+                        .filter(Objects::nonNull).filter(mob -> Utils.xzDistanceSquared(mob.getLocation(),p.getLocation()) < 9).forEach(mob -> {
+                            mob.dealDamage(bDmg);
+                            mob.setLastDamager(p);
+                            mob.fakeDamage();
+                            double kbStrength = 0.25*(4-p.getLocation().distance(mob.getLocation()));
+                            Vector dir = mob.getLocation().toVector().subtract(p.getLocation().toVector()).setY(0);
+                            if (!dir.isZero()) mob.addKnockback(dir.normalize().multiply(kbStrength).setY(0.25));
+                        });
+                Location loc = p.getLocation();
+                double pi = Math.PI;
+                Particle.DustOptions dust = new Particle.DustOptions(Color.RED,1F);
+                for (int i = 0; i < 60; i++) loc.getWorld().spawnParticle(Particle.REDSTONE,loc.getX()+3*Math.cos(pi*i/30),loc.getY(),
+                            loc.getZ()+3*Math.sin(pi*i/30),1,0,0,0,0,dust,true);
+                loc.add(0,1,0);
+                loc.getWorld().spawnParticle(Particle.SMOKE_NORMAL,loc,320,2.5,1,2.5,0.25,null,true);
+                loc.getWorld().playSound(loc,Sound.ENTITY_GENERIC_EXPLODE,2,1);
+            }
+
             return;
         }
         // PLAYER TO MOB
@@ -113,15 +151,87 @@ public class CombatListeners implements Listener {
                 v.setCancelled(true);
                 return;
             }
-            Damage d = p.basicAttack();
-            d.setDamager(p);
             if (rec1.isInvis()) {
                 v.setCancelled(true);
                 return;
             }
+            Damage d = p.basicAttack();
+
+//            TODO SKILLS
+            boolean lifeSteal = p.hasTrigger("BLOODLUST");
+            Map<String, Float> bloodLust = lifeSteal ? SkillHandler.dataGetter(p, EnumClassSkills.BLOODLUST) : new HashMap<>();
+            if (p.hasTrigger("CLEAVE") && p.getAdditionalTrigger("CLEAVE") != 0) {
+                float damage = SkillHandler.dataGetter(p,EnumClassSkills.CLEAVE).getOrDefault("damage",0F);
+
+                int hitLeft = p.getAdditionalTrigger("CLEAVE")-1;
+
+                for (int i = 0 ; i < 60 ; i++) {
+                    double t = 2*Math.PI*i/60;
+                    p.getWorld().spawnParticle(
+                            Particle.REDSTONE,p.getLocation().add(0,1.3,0).add(4*Math.cos(t),0,4*Math.sin(t))
+                            ,1,0,0,0,0,new Particle.DustOptions(Color.RED,1F),true);
+                }
+                p.worldSound(Sound.ENTITY_ZOMBIE_ATTACK_IRON_DOOR,1,0.75F);
+                Damage cleave = p.basicAttack();
+                Damage cleave1 = new Damage(cleave.getOldValue()*damage,false,cleave.isCrit(),cleave.getPenetration());
+                Predicate<Entity> inRadius = e -> Utils.xzDistanceSquared(e.getLocation(),p.getLocation()) < 25;
+                Function<Entity,AbstractDungeonMob> getter = e -> NgabDungeons.getMob(e.getUniqueId());
+                Consumer<AbstractDungeonMob> hit = mob -> {
+                    if (mob == null) return;
+                    if (mob == rec1) return;
+                    mob.fakeDamage();
+                    mob.dealDamage(cleave1);
+
+                    if (lifeSteal) {
+                        double amount = cleave1.getNewValue()*bloodLust.getOrDefault("life_steal",0F)*0.01;
+                        double cap = p.getMaxHealth()*bloodLust.getOrDefault("cap",0F)*0.01;
+                        p.heal(Math.min(amount,cap));
+                        p.getWorld().spawnParticle(Particle.HEART,p.getLocation(),4,0.5,1,0.5,0,null,true);
+                    }
+                };
+                p.getHandle().getNearbyEntities(4,1,4).stream().filter(inRadius).map(getter).forEach(hit);
+
+                if (hitLeft == 0) p.removeTrigger("CLEAVE");
+                else p.addAdditionalTrigger("CLEAVE",hitLeft);
+
+
+            } else p.removeTrigger("CLEAVE");
+            if (p.getPassiveSkills().contains(EnumClassSkills.FRENZY)) {
+                p.addTrigger("FRENZY",80);
+                int frenzy = Math.min(p.getAdditionalTrigger("FRENZY")+1,4);
+                p.addAdditionalTrigger("FRENZY",frenzy);
+            }
+            if (p.hasTrigger("HUNTER") && p.getUltimateSkill() == EnumClassSkills.HUNTER) {
+                v.setCancelled(true);
+                rec1.fakeDamage();
+                PotionEffect eff = new PotionEffect(PotionEffectType.SLOW,4,4,false,false,false);
+                rec1.addPotionEffect(eff);
+                int hits = p.getCounter("HUNTER")+1;
+
+                if (hits >= 3) {
+                    Map<String, Float> data = DatabaseDriver.getInstance().getSkillData(EnumClassSkills.HUNTER,p.getSkillLevel(EnumClassSkills.HUNTER));
+                    p.worldSound(Sound.BLOCK_PISTON_EXTEND,1.25F,2F);
+                    Damage slash = Damage.multiply(p.basicAttackFixedCrit(false),data.getOrDefault("damage",0F));
+                    rec1.dealDamage(slash);
+                    Utils.hunterSlashParticle(rec1);
+
+                    p.removeCounter("HUNTER");
+                } else p.setCounter("HUNTER", hits);
+            }
+
+            d.setDamager(p);
             rec1.dealDamage(d);
             rec1.getDamageCooldown().put(p.getUniqueId(),p.getAttackRecover());
             p.setAttackCooldown();
+
+            if (lifeSteal) {
+                double amount = d.getNewValue()*bloodLust.getOrDefault("life_steal",0F)*0.01;
+                double cap = p.getMaxHealth()*bloodLust.getOrDefault("cap",0F)*0.01;
+                p.heal(Math.min(amount,cap));
+                p.getWorld().spawnParticle(Particle.HEART,p.getLocation(),4,0.5,1,0.5,0,null,true);
+            }
+
+
             return;
         }
         // MOB TO MOB

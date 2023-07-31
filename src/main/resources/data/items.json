@@ -268,5 +268,37 @@
     "base": {
       "DAMAGE": 9
     }
+  },
+  "DESOLATOR": {
+    "name": "Desolator",
+    "material": "BOW",
+    "rarity": 4,
+    "equip": "MAINHAND",
+    "unbreakable": true,
+    "ranged": true,
+    "type": "BOW",
+    "glow": true,
+    "base": {
+      "DAMAGE": 160,
+      "STRENGTH": 50,
+      "CRIT_CHANCE": 40,
+      "PENETRATION": 100
+    }
+  },
+  "IRON_MELTER": {
+    "name": "Iron Melter",
+    "material": "IRON_SWORD",
+    "rarity": 4,
+    "equip": "MAINHAND",
+    "unbreakable": true,
+    "type": "SWORD",
+    "base": {
+      "DAMAGE": 125,
+      "PENETRATION": 650,
+      "STRENGTH": 100,
+      "CRIT_CHANCE": 10,
+      "ATTACK_SPEED": 80
+    },
+    "glow": true
   }
 }

@@ -17,19 +17,19 @@ public enum EnumClassSkills {
     BERSERK(1,true,"Berserk", false),
     HUNTER(1,true,"Hunting Mode", true),
 
-    FORTRESS(2,false,"Fortress", false),
-    PROVOKE(2,false,"Provocation", true),
-    REINFORCED(2,false,"Reinforced", true),
-    BLAST(2,false,"Blast" ,true),
-    SHIELD(2,true,"Shield",false),
-    PERFECT(2,true,"Perfect Defense",true),
-
-    BRAVE(3,false,"Brave Aura",false),
-    SMALL_HEAL(3,false,"Small Heal",true),
-    SUPERIOR(3,false,"Superior",false),
-    RESURRECTION(3,false,"Resurrection",false),
-    BIG_HEAL(3,false,"Big Heal",true),
-    TEAM_BUFF(3,false,"Hail to the Demon",true),
+//    FORTRESS(2,false,"Fortress", false),
+//    PROVOKE(2,false,"Provocation", true),
+//    REINFORCED(2,false,"Reinforced", true),
+//    BLAST(2,false,"Blast" ,true),
+//    SHIELD(2,true,"Shield",false),
+//    PERFECT(2,true,"Perfect Defense",true),
+//
+//    BRAVE(3,false,"Brave Aura",false),
+//    SMALL_HEAL(3,false,"Small Heal",true),
+//    SUPERIOR(3,false,"Superior",false),
+//    RESURRECTION(3,false,"Resurrection",false),
+//    BIG_HEAL(3,false,"Big Heal",true),
+//    TEAM_BUFF(3,false,"Hail to the Demon",true),
 
     ;
     private final int classId;

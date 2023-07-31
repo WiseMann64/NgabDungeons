@@ -7,6 +7,7 @@ import org.bukkit.entity.ArmorStand;
 import org.bukkit.entity.Entity;
 import org.bukkit.event.entity.EntityDamageEvent;
 import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.util.Vector;
 
 import java.util.EnumMap;
 import java.util.Random;
@@ -65,6 +66,9 @@ public interface CombatEntity {
                 label.remove();
             }
         }.runTaskLater(NgabDungeons.getPlugin(),60L);
+    }
+    default void addKnockback(Vector val) {
+        getHandle().setVelocity(getHandle().getVelocity().add(val));
     }
 
 }

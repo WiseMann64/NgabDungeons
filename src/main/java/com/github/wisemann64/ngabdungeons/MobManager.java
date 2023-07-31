@@ -95,7 +95,7 @@ public class MobManager {
     }
 
     public void addArrow(Arrow arrow, double damage, ArrowStats.ArrowShooter shooter, UUID shooterUUID, boolean crit,double penetration) {
-        ArrowStats as = new ArrowStats(arrow, damage, shooter, shooterUUID, crit,penetration,null);
+        ArrowStats as = new ArrowStats(arrow, damage, shooter, shooterUUID, crit,penetration,new EnumMap<>(ArrowStats.ArrowFlags.class));
         flyingArrows.put(arrow.getUniqueId(),as);
     }
 

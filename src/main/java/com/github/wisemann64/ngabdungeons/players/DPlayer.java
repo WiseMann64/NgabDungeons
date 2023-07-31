@@ -13,8 +13,10 @@ import net.md_5.bungee.api.ChatMessageType;
 import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Location;
 import org.bukkit.Sound;
+import org.bukkit.World;
 import org.bukkit.entity.Player;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
 import org.bukkit.inventory.ItemStack;
 import org.jetbrains.annotations.NotNull;
 
@@ -32,12 +34,14 @@ public class DPlayer implements CombatEntity {
     private final EnumMap<EnumDungeonClass,PlayerLevel> classLevels = new EnumMap<>(EnumDungeonClass.class);
     private final PlayerAttributes attr;
 
-    private boolean readyTick = false;
+    private boolean readyTick;
 
     private EnumDungeonClass selectedClass = EnumDungeonClass.TANK;
     private final EnumMap<EnumDungeonClass,SkillHolder> skills = new EnumMap<>(EnumDungeonClass.class);
     private final EnumMap<EnumClassSkills,Integer> skillsLevels = new EnumMap<>(EnumClassSkills.class);
     private final Map<String,Integer> activeTriggers = new HashMap<>();
+    private final Map<String,Integer> additionalTriggers = new HashMap<>();
+    private final Map<String,Integer> counter = new HashMap<>();
 
     private final SkillHandler skillHandler = new SkillHandler(this);
 
@@ -250,10 +254,6 @@ public class DPlayer implements CombatEntity {
         player.getWorld().playSound(player.getLocation(),sound,i,v);
     }
 
-    public void worldParticle() {
-
-    }
-
     public PlayerLevel getCombat() {
         return combat;
     }
@@ -266,7 +266,8 @@ public class DPlayer implements CombatEntity {
     }
 
     private void die() {
-        sendMessage("&4DIE!");
+//        sendMessage("&4DIE!");
+        System.out.println(getMaxHealth());
         setHealth(getMaxHealth());
     }
 
@@ -305,6 +306,14 @@ public class DPlayer implements CombatEntity {
         return player.getLocation();
     }
 
+    public void teleport(Location loc) {
+        player.teleport(loc, PlayerTeleportEvent.TeleportCause.PLUGIN);
+    }
+
+    public World getWorld() {
+        return player.getWorld();
+    }
+
     @Override
     public Location getEyeLocation() {
         return player.getEyeLocation();
@@ -341,8 +350,16 @@ public class DPlayer implements CombatEntity {
 
     public Damage basicAttack() {
         boolean crit = drawCrit();
+        return basicAttackFixedCrit(crit);
+    }
+    public Damage basicAttackFixedCrit(boolean crit) {
         double cd = crit ? 1 + attr.getCritDamage()/100 : 1;
         double dmg = getAttackPower() * (1 + 0.01*attr.getStrength())*cd*attr.getMeleeDamageMultiplier()*attr.getDamageMultiplier();
+        return new Damage(dmg, false,crit,attr.getPenetration());
+    }
+    public Damage simulateBasicAttackFixedCrit(ItemReader item, boolean crit) {
+        double cd = crit ? 1 + attr.getCritDamage()/100 : 1;
+        double dmg = (5 + (item == null ? 0 : item.getDamage())) * (1 + 0.01*attr.getStrength())*cd*attr.getMeleeDamageMultiplier()*attr.getDamageMultiplier();
         return new Damage(dmg, false,crit,attr.getPenetration());
     }
     public Damage arrowAttack(boolean arrowCrit) {
@@ -475,24 +492,51 @@ public class DPlayer implements CombatEntity {
         Set<String> trigs = new HashSet<>(activeTriggers.keySet());
         trigs.forEach(t -> {
             int i = activeTriggers.getOrDefault(t,0);
-            if (i == 0) activeTriggers.remove(t);
+            if (i == 0) {
+                activeTriggers.remove(t);
+                additionalTriggers.remove(t);
+            }
             else activeTriggers.put(t,i-1);
         });
     }
 
-    protected void addTrigger(String trigger, int duration) {
+    public void addTrigger(String trigger, int duration) {
         activeTriggers.put(trigger,duration);
+    }
+
+    public void addAdditionalTrigger(String trigger, int value) {
+        additionalTriggers.put(trigger,value);
     }
 
     public boolean hasTrigger(String trigger) {
         return activeTriggers.containsKey(trigger);
     }
+    public int getAdditionalTrigger(String trigger) {
+        return additionalTriggers.getOrDefault(trigger,0);
+    }
 
     public void removeTrigger(String trigger) {
         activeTriggers.remove(trigger);
+        additionalTriggers.remove(trigger);
+    }
+
+    public int getCounter(String key) {
+        return counter.getOrDefault(key,0);
+    }
+
+    public void setCounter(String key, int value) {
+        counter.put(key,value);
+    }
+
+    public void removeCounter(String key) {
+        counter.remove(key);
     }
 
     public SkillHandler getSkillHandler() {
         return skillHandler;
+    }
+
+    public boolean ultimateReady() {
+        return skillHandler.ultimateReady();
     }
 }

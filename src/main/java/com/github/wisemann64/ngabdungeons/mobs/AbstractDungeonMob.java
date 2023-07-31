@@ -13,6 +13,7 @@ import org.bukkit.craftbukkit.v1_19_R3.CraftWorld;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.potion.PotionEffect;
 
 import java.util.*;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -32,7 +33,6 @@ public abstract class AbstractDungeonMob implements CombatEntity {
     private boolean isInvul;
     private boolean readyTick = false;
 
-    public final Map<String,Integer> mapSI = new HashMap<>();
     public final List<MobFlag<?>> flags = new ArrayList<>();
     public final Map<MobFlag<?>,Integer> timedFlags = new HashMap<>();
 
@@ -279,5 +279,9 @@ public abstract class AbstractDungeonMob implements CombatEntity {
         double mul = 1 - (def < 0 ? def/120d : def/(def+120));
         damage.setNewValue(dealDamage(damage.getOldValue()*mul,damage.getDamager()));
         showIndicator(damage);
+    }
+
+    public void addPotionEffect(PotionEffect eff) {
+        if (handle.getBukkitEntity() instanceof LivingEntity e) e.addPotionEffect(eff);
     }
 }
